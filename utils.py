@@ -17,9 +17,9 @@ get_stddev = lambda x, k_h, k_w: 1/math.sqrt(k_w*k_h*x.get_shape()[-1])
 # -----------------------------
 # new added functions for pix2pix
 
-def load_data(image_path, flip=True, is_test=False):
+def load_data(image_path, flip=True, is_test=False, fine_size=256):
     img_A, img_B = load_image(image_path)
-    img_A, img_B = preprocess_A_and_B(img_A, img_B, flip=flip, is_test=is_test)
+    img_A, img_B = preprocess_A_and_B(img_A, img_B, fine_size=fine_size, flip=flip, is_test=is_test)
 
     img_A = img_A/127.5 - 1.
     img_B = img_B/127.5 - 1.

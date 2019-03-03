@@ -111,7 +111,7 @@ class pix2pix(object):
 
     def load_random_samples(self):
         data = np.random.choice(glob('./datasets/{}/val/*.jpg'.format(self.dataset_name)), self.batch_size)
-        sample = [load_data(sample_file) for sample_file in data]
+        sample = [load_data(sample_file, fine_size=self.image_size) for sample_file in data]
 
         if (self.is_grayscale):
             sample_images = np.array(sample).astype(np.float32)[:, :, :, None]
@@ -159,7 +159,7 @@ class pix2pix(object):
 
             for idx in xrange(0, batch_idxs):
                 batch_files = data[idx*self.batch_size:(idx+1)*self.batch_size]
-                batch = [load_data(batch_file) for batch_file in batch_files]
+                batch = [load_data(batch_file, fine_size=self.image_size) for batch_file in batch_files]
                 if (self.is_grayscale):
                     batch_images = np.array(batch).astype(np.float32)[:, :, :, None]
                 else:
@@ -238,56 +238,47 @@ class pix2pix(object):
             # e6 is (4 x 4 x self.gf_dim*8)
             e7 = self.g_bn_e7(conv2d(lrelu(e6), self.gf_dim*8, name='g_e7_conv'))
             # e7 is (2 x 2 x self.gf_dim*8)
-            e8 = self.g_bn_e8(conv2d(lrelu(e7), self.gf_dim*8, name='g_e8_conv'))
-            # e8 is (1 x 1 x self.gf_dim*8)
 
-            self.d1, self.d1_w, self.d1_b = deconv2d(tf.nn.relu(e8),
-                [self.batch_size, s128, s128, self.gf_dim*8], name='g_d1', with_w=True)
+            self.d1, self.d1_w, self.d1_b = deconv2d(tf.nn.relu(e7),
+                [self.batch_size, s64, s64, self.gf_dim*8], name='g_d1', with_w=True)
             d1 = tf.nn.dropout(self.g_bn_d1(self.d1), 0.5)
-            d1 = tf.concat([d1, e7], 3)
+            d1 = tf.concat([d1, e6], 3)
             # d1 is (2 x 2 x self.gf_dim*8*2)
 
             self.d2, self.d2_w, self.d2_b = deconv2d(tf.nn.relu(d1),
-                [self.batch_size, s64, s64, self.gf_dim*8], name='g_d2', with_w=True)
+                [self.batch_size, s32, s32, self.gf_dim*8], name='g_d2', with_w=True)
             d2 = tf.nn.dropout(self.g_bn_d2(self.d2), 0.5)
-            d2 = tf.concat([d2, e6], 3)
+            d2 = tf.concat([d2, e5], 3)
             # d2 is (4 x 4 x self.gf_dim*8*2)
 
             self.d3, self.d3_w, self.d3_b = deconv2d(tf.nn.relu(d2),
-                [self.batch_size, s32, s32, self.gf_dim*8], name='g_d3', with_w=True)
+                [self.batch_size, s16, s16, self.gf_dim*8], name='g_d3', with_w=True)
             d3 = tf.nn.dropout(self.g_bn_d3(self.d3), 0.5)
-            d3 = tf.concat([d3, e5], 3)
+            d3 = tf.concat([d3, e4], 3)
             # d3 is (8 x 8 x self.gf_dim*8*2)
 
             self.d4, self.d4_w, self.d4_b = deconv2d(tf.nn.relu(d3),
-                [self.batch_size, s16, s16, self.gf_dim*8], name='g_d4', with_w=True)
+                [self.batch_size, s8, s8, self.gf_dim*8], name='g_d4', with_w=True)
             d4 = self.g_bn_d4(self.d4)
-            d4 = tf.concat([d4, e4], 3)
+            d4 = tf.concat([d4, e3], 3)
             # d4 is (16 x 16 x self.gf_dim*8*2)
 
             self.d5, self.d5_w, self.d5_b = deconv2d(tf.nn.relu(d4),
-                [self.batch_size, s8, s8, self.gf_dim*4], name='g_d5', with_w=True)
+                [self.batch_size, s4, s4, self.gf_dim*4], name='g_d5', with_w=True)
             d5 = self.g_bn_d5(self.d5)
-            d5 = tf.concat([d5, e3], 3)
+            d5 = tf.concat([d5, e2], 3)
             # d5 is (32 x 32 x self.gf_dim*4*2)
 
             self.d6, self.d6_w, self.d6_b = deconv2d(tf.nn.relu(d5),
-                [self.batch_size, s4, s4, self.gf_dim*2], name='g_d6', with_w=True)
+                [self.batch_size, s2, s2, self.gf_dim*2], name='g_d6', with_w=True)
             d6 = self.g_bn_d6(self.d6)
-            d6 = tf.concat([d6, e2], 3)
-            # d6 is (64 x 64 x self.gf_dim*2*2)
+            d6 = tf.concat([d6, e1], 3)
 
             self.d7, self.d7_w, self.d7_b = deconv2d(tf.nn.relu(d6),
-                [self.batch_size, s2, s2, self.gf_dim], name='g_d7', with_w=True)
-            d7 = self.g_bn_d7(self.d7)
-            d7 = tf.concat([d7, e1], 3)
-            # d7 is (128 x 128 x self.gf_dim*1*2)
+                [self.batch_size, s, s, self.output_c_dim], name='g_d7', with_w=True)
+            # d8 is (128 x 128 x output_c_dim)
 
-            self.d8, self.d8_w, self.d8_b = deconv2d(tf.nn.relu(d7),
-                [self.batch_size, s, s, self.output_c_dim], name='g_d8', with_w=True)
-            # d8 is (256 x 256 x output_c_dim)
-
-            return tf.nn.tanh(self.d8)
+            return tf.nn.tanh(self.d7)
 
     def sampler(self, image, y=None):
 
@@ -312,56 +303,48 @@ class pix2pix(object):
             # e6 is (4 x 4 x self.gf_dim*8)
             e7 = self.g_bn_e7(conv2d(lrelu(e6), self.gf_dim*8, name='g_e7_conv'))
             # e7 is (2 x 2 x self.gf_dim*8)
-            e8 = self.g_bn_e8(conv2d(lrelu(e7), self.gf_dim*8, name='g_e8_conv'))
-            # e8 is (1 x 1 x self.gf_dim*8)
 
-            self.d1, self.d1_w, self.d1_b = deconv2d(tf.nn.relu(e8),
-                [self.batch_size, s128, s128, self.gf_dim*8], name='g_d1', with_w=True)
+            self.d1, self.d1_w, self.d1_b = deconv2d(tf.nn.relu(e7),
+                [self.batch_size, s64, s64, self.gf_dim*8], name='g_d1', with_w=True)
             d1 = tf.nn.dropout(self.g_bn_d1(self.d1), 0.5)
-            d1 = tf.concat([d1, e7], 3)
+            d1 = tf.concat([d1, e6], 3)
             # d1 is (2 x 2 x self.gf_dim*8*2)
 
             self.d2, self.d2_w, self.d2_b = deconv2d(tf.nn.relu(d1),
-                [self.batch_size, s64, s64, self.gf_dim*8], name='g_d2', with_w=True)
+                [self.batch_size, s32, s32, self.gf_dim*8], name='g_d2', with_w=True)
             d2 = tf.nn.dropout(self.g_bn_d2(self.d2), 0.5)
-            d2 = tf.concat([d2, e6], 3)
+            d2 = tf.concat([d2, e5], 3)
             # d2 is (4 x 4 x self.gf_dim*8*2)
 
             self.d3, self.d3_w, self.d3_b = deconv2d(tf.nn.relu(d2),
-                [self.batch_size, s32, s32, self.gf_dim*8], name='g_d3', with_w=True)
+                [self.batch_size, s16, s16, self.gf_dim*8], name='g_d3', with_w=True)
             d3 = tf.nn.dropout(self.g_bn_d3(self.d3), 0.5)
-            d3 = tf.concat([d3, e5], 3)
+            d3 = tf.concat([d3, e4], 3)
             # d3 is (8 x 8 x self.gf_dim*8*2)
 
             self.d4, self.d4_w, self.d4_b = deconv2d(tf.nn.relu(d3),
-                [self.batch_size, s16, s16, self.gf_dim*8], name='g_d4', with_w=True)
+                [self.batch_size, s8, s8, self.gf_dim*8], name='g_d4', with_w=True)
             d4 = self.g_bn_d4(self.d4)
-            d4 = tf.concat([d4, e4], 3)
+            d4 = tf.concat([d4, e3], 3)
             # d4 is (16 x 16 x self.gf_dim*8*2)
 
             self.d5, self.d5_w, self.d5_b = deconv2d(tf.nn.relu(d4),
-                [self.batch_size, s8, s8, self.gf_dim*4], name='g_d5', with_w=True)
+                [self.batch_size, s4, s4, self.gf_dim*4], name='g_d5', with_w=True)
             d5 = self.g_bn_d5(self.d5)
-            d5 = tf.concat([d5, e3], 3)
+            d5 = tf.concat([d5, e2], 3)
             # d5 is (32 x 32 x self.gf_dim*4*2)
 
             self.d6, self.d6_w, self.d6_b = deconv2d(tf.nn.relu(d5),
-                [self.batch_size, s4, s4, self.gf_dim*2], name='g_d6', with_w=True)
+                [self.batch_size, s2, s2, self.gf_dim*2], name='g_d6', with_w=True)
             d6 = self.g_bn_d6(self.d6)
-            d6 = tf.concat([d6, e2], 3)
+            d6 = tf.concat([d6, e1], 3)
             # d6 is (64 x 64 x self.gf_dim*2*2)
 
             self.d7, self.d7_w, self.d7_b = deconv2d(tf.nn.relu(d6),
-                [self.batch_size, s2, s2, self.gf_dim], name='g_d7', with_w=True)
-            d7 = self.g_bn_d7(self.d7)
-            d7 = tf.concat([d7, e1], 3)
-            # d7 is (128 x 128 x self.gf_dim*1*2)
-
-            self.d8, self.d8_w, self.d8_b = deconv2d(tf.nn.relu(d7),
-                [self.batch_size, s, s, self.output_c_dim], name='g_d8', with_w=True)
+                [self.batch_size, s, s, self.output_c_dim], name='g_d7', with_w=True)
             # d8 is (256 x 256 x output_c_dim)
 
-            return tf.nn.tanh(self.d8)
+            return tf.nn.tanh(self.d7)
 
     def save(self, checkpoint_dir, step):
         model_name = "pix2pix.model"
@@ -390,6 +373,7 @@ class pix2pix(object):
             return False
 
     def test(self, args):
+        from scipy.misc import imresize, imread, imsave
         """Test pix2pix"""
         init_op = tf.global_variables_initializer()
         self.sess.run(init_op)
@@ -397,12 +381,13 @@ class pix2pix(object):
         sample_files = glob('./datasets/{}/val/*.jpg'.format(self.dataset_name))
 
         # sort testing input
-        n = [int(i) for i in map(lambda x: x.split('/')[-1].split('.jpg')[0], sample_files)]
+        # n = [int(i) for i in map(lambda x: x.split('/')[-1].split('.jpg')[0], sample_files)]
+        n = range(len(sample_files))
         sample_files = [x for (y, x) in sorted(zip(n, sample_files))]
 
         # load testing input
         print("Loading testing images ...")
-        sample = [load_data(sample_file, is_test=True) for sample_file in sample_files]
+        sample = [load_data(sample_file, is_test=True, fine_size=self.image_size) for sample_file in sample_files]
 
         if (self.is_grayscale):
             sample_images = np.array(sample).astype(np.float32)[:, :, :, None]
@@ -427,5 +412,19 @@ class pix2pix(object):
                 self.fake_B_sample,
                 feed_dict={self.real_data: sample_image}
             )
-            save_images(samples, [self.batch_size, 1],
+
+            # sample_image_255 = (sample_image + 1.) / 2. * 255.0
+            # sample_image_255_a = sample_image_255[:, :, :, 3:]
+            sample_image_a = sample_image[:, :, :, 3:]
+            #
+            # samples_resized = np.zeros((self.batch_size, 128, 128, 3))
+            # for i, sample in zip(range(len(samples)), samples):
+            #     samples_resized[i] = imresize(sample, (128, 128))
+
+            samples_concat = np.concatenate((sample_image_a, samples), axis=1)
+            # sample_merged = merge(samples_concat, [self.batch_size, 1])
+
+            # imsave('./{}/test_{:04d}.png'.format(args.test_dir, idx), sample_merged)
+
+            save_images(samples_concat, [self.batch_size, 1],
                         './{}/test_{:04d}.png'.format(args.test_dir, idx))
