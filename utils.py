@@ -53,8 +53,8 @@ def preprocess_A_and_B(img_A, img_B, load_size=286, fine_size=256, flip=True, is
         # img_B = img_B[h1:h1+fine_size, w1:w1+fine_size]
 
         if flip and np.random.random() > 0.5:
-            img_A = np.fliplr(img_A)
-            img_B = np.fliplr(img_B)
+            img_A = np.flipud(img_A)
+            img_B = np.flipud(img_B)
 
     return img_A, img_B
 
