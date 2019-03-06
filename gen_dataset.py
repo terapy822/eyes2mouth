@@ -23,7 +23,7 @@ def gen_concat_dataset(names, is_train, im_size, dataset_dir):
         print(name)
 
 val_size = 2000
-im_size = 100
+im_size = 256
 top_dir = "input/image_top/"
 bottoms_dir = "input/image_bottom/"
 dataset_dir = "datasets/face{}".format(im_size)
