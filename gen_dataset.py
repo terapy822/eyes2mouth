@@ -2,6 +2,12 @@ from glob import glob
 from scipy.misc import imread, imsave, imresize
 import os
 import numpy as np
+import argparse
+
+parser = argparse.ArgumentParser(description='')
+parser.add_argument('--valsize', type=int, default=100)
+parser.add_argument('--imsize', type=int, default=128)
+args = parser.parse_args()
 
 def gen_concat_dataset(names, is_train, im_size, cropped_dir, dataset_dir):
     if is_train:
@@ -17,8 +23,8 @@ def gen_concat_dataset(names, is_train, im_size, cropped_dir, dataset_dir):
         imsave(os.path.join(dataset_dir, mode, name), im)
         print(name)
 
-val_size = 100
-im_size = 129
+val_size = args.valsize
+im_size = args.imsize
 cropped_dir = "input/cropped"
 dataset_dir = "datasets/face{}".format(im_size)
 train_dir = os.path.join(dataset_dir, "train")
