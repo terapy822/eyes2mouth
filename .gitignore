@@ -5,3 +5,9 @@ datasets/*
 checkpoint/*
 val/*
 *.pyc
+.DS_Store
+.idea/
+input/image
+input/image_bottom
+input/image_top
+input/cropped
