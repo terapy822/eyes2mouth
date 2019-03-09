@@ -125,7 +125,11 @@ class pix2pix(object):
             [self.fake_B_sample, self.d_loss, self.g_loss],
             feed_dict={self.real_data: sample_images}
         )
-        save_images(samples, [self.batch_size, 1],
+        sample_a = sample_images[:, :, :, :3]
+        samples_concat = np.concatenate((sample_a, samples), axis=2)
+        samples_concat = rot90_batch(samples_concat, 3)
+        samples_concat = imresize_batch(samples_concat, (self.image_size, self.image_size))
+        save_images(samples_concat, [self.batch_size, 1],
                     './{}/train_{:02d}_{:04d}.png'.format(sample_dir, epoch, idx))
         print("[Sample] d_loss: {:.8f}, g_loss: {:.8f}".format(d_loss, g_loss))
 
@@ -374,6 +378,7 @@ class pix2pix(object):
 
     def test(self, args):
         from scipy.misc import imresize, imread, imsave
+        from utils import rot90_batch, imresize_batch
         """Test pix2pix"""
         init_op = tf.global_variables_initializer()
         self.sess.run(init_op)
@@ -413,18 +418,11 @@ class pix2pix(object):
                 feed_dict={self.real_data: sample_image}
             )
 
-            # sample_image_255 = (sample_image + 1.) / 2. * 255.0
-            # sample_image_255_a = sample_image_255[:, :, :, 3:]
-            sample_image_a = sample_image[:, :, :, 3:]
-            #
-            # samples_resized = np.zeros((self.batch_size, 128, 128, 3))
-            # for i, sample in zip(range(len(samples)), samples):
-            #     samples_resized[i] = imresize(sample, (128, 128))
+            sample_image_a = sample_image[:, :, :, :3]
 
-            samples_concat = np.concatenate((sample_image_a, samples), axis=1)
-            # sample_merged = merge(samples_concat, [self.batch_size, 1])
-
-            # imsave('./{}/test_{:04d}.png'.format(args.test_dir, idx), sample_merged)
+            samples_concat = np.concatenate((sample_image_a, samples), axis=2)
+            samples_concat = imresize_batch(samples_concat, (self.image_size, self.image_size))
+            samples_concat = rot90_batch(samples_concat, 3)
 
             save_images(samples_concat, [self.batch_size, 1],
                         './{}/test_{:04d}.png'.format(args.test_dir, idx))

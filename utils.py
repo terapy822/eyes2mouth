@@ -99,4 +99,15 @@ def transform(image, npx=64, is_crop=True, resize_w=64):
 def inverse_transform(images):
     return (images+1.)/2.
 
+def rot90_batch(arrs, *args, **kwargs):
+    batch = []
+    for arr in arrs:
+        batch.append(np.rot90(arr, *args, **kwargs))
+    return np.stack(batch, axis=0)
+
+def imresize_batch(arrs, *args, **kwargs):
+    batch = []
+    for arr in arrs:
+        batch.append(scipy.misc.imresize(arr, *args, **kwargs))
+    return np.stack(batch, axis=0)
 
