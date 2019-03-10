@@ -77,8 +77,8 @@ class pix2pix(object):
 
         self.fake_B = self.generator(self.real_A)
 
-        self.real_AB = tf.concat([self.real_A, self.real_B], 2)
-        self.fake_AB = tf.concat([self.real_A, self.fake_B], 2)
+        self.real_AB = tf.concat([self.real_A, self.real_B], 3)
+        self.fake_AB = tf.concat([self.real_A, self.fake_B], 3g)
         self.D, self.D_logits = self.discriminator(self.real_AB, reuse=False)
         self.D_, self.D_logits_ = self.discriminator(self.fake_AB, reuse=True)
 
