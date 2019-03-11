@@ -1,4 +1,4 @@
-# eye2mouth
+# eyes2mouth
 !["01"](example01.png)
 !["02"](example02.png)
 !["03"](example03.png)
