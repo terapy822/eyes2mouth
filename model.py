@@ -426,3 +426,19 @@ class pix2pix(object):
 
             save_images(samples_concat, [self.batch_size, 1],
                         './{}/test_{:04d}.png'.format(args.test_dir, idx))
+
+    def test_1_image(self, img):
+        from utils import rot90_batch, imresize_batch
+        assert self.load(self.checkpoint_dir), " [-] Load FAILED"
+        print(" [*] Load SUCCESS")
+        img_ = preprocess_img(img)
+        img_mb = img_.reshape([1, *img_.shape])
+        img_sample_mb = self.sess.run(
+            self.fake_B_sample,
+            feed_dict={self.real_data: img_mb}
+        )
+        img_concat_mb = np.concatenate((img_mb[:, :, :, :3], img_sample_mb), axis=2)
+        img_concat_mb = imresize_batch(img_concat_mb, (self.image_size, self.image_size))
+        img_concat_mb = rot90_batch(img_concat_mb, 3)
+
+        return img_concat_mb.reshape([self.image_size, self.image_size, 3])

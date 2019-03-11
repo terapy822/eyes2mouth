@@ -28,6 +28,19 @@ def load_data(image_path, flip=True, is_test=False, fine_size=256):
     # img_AB shape: (fine_size, fine_size, input_c_dim + output_c_dim)
     return img_AB
 
+def preprocess_img(img):
+    w = int(img.shape[1])
+    w2 = int(w/2)
+    img_A = img[:, 0:w2]
+    img_B = img[:, w2:w]
+
+    img_A = img_A/127.5 - 1.
+    img_B = img_B/127.5 - 1.
+
+    img_AB = np.concatenate((img_A, img_B), axis=2)
+    # img_AB shape: (fine_size, fine_size, input_c_dim + output_c_dim)
+    return img_AB
+
 def load_image(image_path):
     input_img = imread(image_path)
     w = int(input_img.shape[1])
@@ -111,3 +124,8 @@ def imresize_batch(arrs, *args, **kwargs):
         batch.append(scipy.misc.imresize(arr, *args, **kwargs))
     return np.stack(batch, axis=0)
 
+def resize_and_rotate(im, fine_size):
+    from scipy.misc import imresize
+    im = np.rot90(im)
+    im = imresize(im, (fine_size, fine_size * 2))
+    return im
