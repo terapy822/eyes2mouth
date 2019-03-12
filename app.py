@@ -6,32 +6,42 @@ import os
 from argparse import ArgumentParser
 from flask import Flask, request, abort
 from linebot import LineBotApi, WebhookHandler
-from linebot.models import MessageEvent, TextMessage, TextSendMessage, LocationMessage, LocationSendMessage, SourceGroup, SourceRoom
-from modules import opt_route
-import names
-from datetime import datetime
+from linebot.models import MessageEvent, TextMessage, TextSendMessage, LocationMessage, LocationSendMessage, SourceGroup, SourceRoom, ImageMessage, ImageSendMessage
+from model import pix2pix
+import tensorflow as tf
+import tempfile
+
+from scipy.misc import imread, imsave, imresize
+from facecrop import crop_face
+from utils import resize_and_rotate
 
 app = Flask(__name__)
-token = os.environ['TOKEN']
-secret_key = os.environ['SECRET']
+
+token = "qKYgJNQ5STQbegfWu5WSRFOQ9bRB32wbGTCZ8h6iNQEgUMISmdmh293pqekm+OAF5fmWt4kfO68Efjd+rW1Nj03d08xYFVoecOaptmEH/PmyxPsK4Vr9Q8sKxe2NOVI1LnNpL70Z4sDlFp9yQtfJHwdB04t89/1O/w1cDnyilFU="
+secret_key = "e70a2bc22458f404ece19733305f8ef7"
 line_bot_api = LineBotApi(token)
 handler = WebhookHandler(secret_key)
 
-swarmsize = int(os.environ['SWARMSIZE'])
-maxiter = int(os.environ['MAXITER'])
+base_url = "https://nayopu.ngrok.io/"
+static_tmp_path = os.path.join('static', 'tmp')
+static_gen_path = os.path.join('static', 'gen')
+os.makedirs(static_tmp_path, exist_ok=True)
+os.makedirs(static_gen_path, exist_ok=True)
 
 # create user stats dictionary
 user_dict = {}
 
+# get model instance
+model = pix2pix(tf.Session(), dataset_name="face128", image_size=128, batch_size=1, output_size=128, checkpoint_dir="checkpoint/")
+
 class UserStatus():
     def __init__(self):
         self.state = "waiting"
-        self.coord = []
-        self.isexplained = False
+        self.name = ""
 
     def clear(self):
         self.state = "waiting"
-        self.coord = []
+        self.name = ""
 
 
 @app.route("/callback", methods=['POST'])
@@ -51,100 +61,34 @@ def callback():
 
     return 'OK'
 
+@handler.add(MessageEvent, message=ImageMessage)
+def handle_content_message(event):
+    ext = 'jpg'
 
-@handler.add(MessageEvent, message=TextMessage)
-def handle_text_message(event):
-    if isinstance(event.source, SourceGroup):
-        id = event.source.group_id
-    elif isinstance(event.source, SourceRoom):
-        id = event.source.room_id
-    else:
-        id = event.source.user_id
-    if not id in user_dict:
-        user_dict[id] = UserStatus()
+    message_content = line_bot_api.get_message_content(event.message.id)
+    with tempfile.NamedTemporaryFile(dir=static_tmp_path, prefix=ext + '-', delete=False) as tf:
+        for chunk in message_content.iter_content():
+            tf.write(chunk)
+        tempfile_path = tf.name
 
-    text = event.message.text
-    if text == "手伝って" and user_dict[id].state == "waiting":
-        user_dict[id].state = "collecting_coordination"
-        line_bot_api.reply_message(event.reply_token,
-                                   [TextSendMessage(text="かしこまりました"), TextSendMessage(text="位置情報を教えてください")])
-    elif text == "スタート" and len(user_dict[id].coord) >= 2:
-        line_bot_api.reply_message(event.reply_token, TextSendMessage(text="検索を開始します"))
-        coord_dict = {}
-        for coord in user_dict[id].coord:
-            coord_dict[names.get_first_name(gender=None)] = coord
-        timestamp = datetime.now().strftime("%Y-%m-%d_%H:%M")
-        opt_coord = opt_route(coord_dict, depart_str=timestamp, swarmsize=swarmsize, maxiter=maxiter)
-        line_bot_api.push_message(id, TextSendMessage(text='検索がおわりました！'))
-        line_bot_api.push_message(id,
-                                  LocationSendMessage(title="where2meet", address="written by nayopu",
-                                                      latitude=opt_coord[0], longitude=opt_coord[1]))
-        user_dict[id].clear()
+    # get path
+    dist_path = tempfile_path + '.' + ext
+    dist_name = os.path.basename(dist_path)
+    os.rename(tempfile_path, dist_path)
+    image_path = os.path.join(static_tmp_path, dist_name)
 
-    elif text == "デバッグ":
-        line_bot_api.reply_message(event.reply_token,
-                                   TextSendMessage(text=str([user_dict[id].state, user_dict[id].coord])))
+    img = imread(image_path)
+    face_img = crop_face(img, (100, 100))
+    face_img = imresize(face_img, (128, 128))
+    resized_img = resize_and_rotate(face_img, 128)
+    gen_img = model.test_1_image(resized_img)
 
-    elif text == 'ばいばい':
-        if isinstance(event.source, SourceGroup):
-            line_bot_api.reply_message(
-                event.reply_token, TextSendMessage(text='さようなら'))
-            line_bot_api.leave_group(event.source.group_id)
-        elif isinstance(event.source, SourceRoom):
-            line_bot_api.reply_message(
-                event.reply_token, TextSendMessage(text='さようなら'))
-            line_bot_api.leave_room(event.source.room_id)
-        else:
-            line_bot_api.reply_message(
-                event.reply_token,
-                TextSendMessage(text="Bot can't leave from 1:1 chat"))
+    gen_path = os.path.join(static_gen_path, dist_name)
+    imsave(gen_path, gen_img)
 
-    elif text == "キャンセル":
-        user_dict[id].clear()
-        line_bot_api.reply_message(event.reply_token, TextSendMessage(text='はじめからやり直しましょう'))
-
-    elif text == "Hello, world":
-        text = event.message.text  # message from user
-        line_bot_api.reply_message(
-            event.reply_token,
-            TextSendMessage(text=text))  # reply the same message from user
-    else:
-        if not user_dict[id].isexplained:
-            line_bot_api.push_message(id,
-                                      [TextSendMessage(text="お困りですか？"),
-                                       TextSendMessage(text="[手伝って]ではじめます"),
-                                       TextSendMessage(text="様子がおかしいときは[キャンセル]で"),
-                                       TextSendMessage(text="用が済んだら[ばいばい]しましょう")])
-            user_dict[id].isexplained = True
-
-
-@handler.add(MessageEvent, message=LocationMessage)
-# @consor(database)
-def handle_location_message(event):
-    global user_dict
-
-    if isinstance(event.source, SourceGroup):
-        id = event.source.group_id
-    elif isinstance(event.source, SourceRoom):
-        id = event.source.room_id
-    else:
-        id = event.source.user_id
-    if not id in user_dict:
-        user_dict[id] = UserStatus()
-
-    if user_dict[id].state == "collecting_coordination":
-        user_dict[id].coord.append([event.message.latitude, event.message.longitude])
-        if len(user_dict[id].coord) == 1:
-            line_bot_api.reply_message(event.reply_token, [TextSendMessage(text=str(event.message.address) + "ですね！"),
-                                                           TextSendMessage(text="他の人の位置情報も教えてください")])
-        elif len(user_dict[id].coord) >= 2:
-            line_bot_api.reply_message(event.reply_token, [TextSendMessage(text=str(event.message.address) + "ですね！"),
-                                                           TextSendMessage(text="他の人の位置情報も教えてください"),
-                                                           TextSendMessage(text="検索を開始するときは[スタート]の合図をください")])
-
-    else:
-        user_dict[id].clear()
-        line_bot_api.reply_message(event.reply_token, TextSendMessage(text="最初からやり直してください"))
+    line_bot_api.reply_message(event.reply_token, ImageSendMessage(
+        original_content_url=os.path.join(base_url, gen_path),
+        preview_image_url=os.path.join(base_url, gen_path)))
 
 
 if __name__ == "__main__":
@@ -153,7 +97,7 @@ if __name__ == "__main__":
     )
     arg_parser.add_argument('-p', '--port', type=int, default=80, help='port')
     arg_parser.add_argument('-ip', '--host', type=str, default="0.0.0.0", help='host')
-    arg_parser.add_argument('-d', '--debug', default=True, help='debug')
+    arg_parser.add_argument('-d', '--debug', default=False, help='debug')
     options = arg_parser.parse_args()
 
     app.run(debug=options.debug, port=options.port, host=options.host)
