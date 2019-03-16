@@ -10,7 +10,7 @@ from linebot.models import MessageEvent, TextMessage, TextSendMessage, LocationM
 from model import pix2pix
 import tensorflow as tf
 import tempfile
-
+import numpy as np
 from scipy.misc import imread, imsave, imresize
 from facecrop import crop_face
 from utils import resize_and_rotate
@@ -23,16 +23,22 @@ line_bot_api = LineBotApi(token)
 handler = WebhookHandler(secret_key)
 
 base_url = "https://nayopu.ngrok.io/"
-static_tmp_path = os.path.join('static', 'tmp')
-static_gen_path = os.path.join('static', 'gen')
-os.makedirs(static_tmp_path, exist_ok=True)
-os.makedirs(static_gen_path, exist_ok=True)
+static_tmp_dir = os.path.join('static', 'tmp')
+static_gen_dir = os.path.join('static', 'gen')
+static_crop_dir = os.path.join('static', 'crop')
+os.makedirs(static_tmp_dir, exist_ok=True)
+os.makedirs(static_gen_dir, exist_ok=True)
+os.makedirs(static_crop_dir, exist_ok=True)
 
 # create user stats dictionary
 user_dict = {}
 
+image_size = 128
+
+hatena_img = imresize(imread("hatena.jpg"), (int(image_size/2), image_size))
+
 # get model instance
-model = pix2pix(tf.Session(), dataset_name="face128", image_size=128, batch_size=1, output_size=128, checkpoint_dir="checkpoint/")
+model = pix2pix(tf.Session(), dataset_name="face128", image_size=image_size, batch_size=1, output_size=128, checkpoint_dir="checkpoint/")
 
 class UserStatus():
     def __init__(self):
@@ -61,12 +67,48 @@ def callback():
 
     return 'OK'
 
+@handler.add(MessageEvent, message=TextMessage)
+def handle_text_message(event):
+    text = event.message.text
+    if isinstance(event.source, SourceGroup):
+        id = event.source.group_id
+    elif isinstance(event.source, SourceRoom):
+        id = event.source.room_id
+    else:
+        id = event.source.user_id
+    if id in user_dict:
+        if text == "はい" and user_dict[id].state == "pending":
+            dist_name = user_dict[id].name
+            face_img = imread(os.path.join(static_crop_dir, dist_name))
+            resized_img = resize_and_rotate(face_img, image_size)
+            gen_img = model.test_1_image(resized_img)
+            gen_path = os.path.join(static_gen_dir, dist_name)
+            imsave(gen_path, gen_img)
+            line_bot_api.reply_message(event.reply_token, ImageSendMessage(original_content_url=os.path.join(base_url, gen_path),
+                                                         preview_image_url=os.path.join(base_url, gen_path)))
+            user_dict[id].clear()
+
+        elif text == "いいえ" and user_dict[id].state == "pending":
+            user_dict[id].clear()
+            line_bot_api.reply_message(event.reply_token, TextSendMessage("最初からやりなおしてください"))
+        else:
+            return
+    else:
+        return
+
 @handler.add(MessageEvent, message=ImageMessage)
 def handle_content_message(event):
-    ext = 'jpg'
-
+    if isinstance(event.source, SourceGroup):
+        id = event.source.group_id
+    elif isinstance(event.source, SourceRoom):
+        id = event.source.room_id
+    else:
+        id = event.source.user_id
+    if not id in user_dict:
+        user_dict[id] = UserStatus()
+    ext = "jpg"
     message_content = line_bot_api.get_message_content(event.message.id)
-    with tempfile.NamedTemporaryFile(dir=static_tmp_path, prefix=ext + '-', delete=False) as tf:
+    with tempfile.NamedTemporaryFile(dir=static_tmp_dir, prefix=ext + '-', delete=False) as tf:
         for chunk in message_content.iter_content():
             tf.write(chunk)
         tempfile_path = tf.name
@@ -75,20 +117,27 @@ def handle_content_message(event):
     dist_path = tempfile_path + '.' + ext
     dist_name = os.path.basename(dist_path)
     os.rename(tempfile_path, dist_path)
-    image_path = os.path.join(static_tmp_path, dist_name)
+    image_path = os.path.join(static_tmp_dir, dist_name)
 
     img = imread(image_path)
-    face_img = crop_face(img, (100, 100))
-    face_img = imresize(face_img, (128, 128))
-    resized_img = resize_and_rotate(face_img, 128)
-    gen_img = model.test_1_image(resized_img)
-
-    gen_path = os.path.join(static_gen_path, dist_name)
-    imsave(gen_path, gen_img)
-
-    line_bot_api.reply_message(event.reply_token, ImageSendMessage(
-        original_content_url=os.path.join(base_url, gen_path),
-        preview_image_url=os.path.join(base_url, gen_path)))
+    face_img = crop_face(img, (image_size, image_size))
+    if np.isnan(face_img).any():
+        line_bot_api.reply_message(event.reply_token,
+                                   [TextSendMessage("顔をみつけられませんでした"),
+                                    TextSendMessage("べつの画像でためしてください")])
+        user_dict[id].clear()
+    else:
+        # face_img = imresize(face_img, (128, 128))
+        eyes_img = face_img[:int(image_size/2), :, :]
+        concat_img = np.concatenate([eyes_img, hatena_img], axis=0)
+        img_path = os.path.join(static_crop_dir, dist_name)
+        imsave(img_path, concat_img)
+        line_bot_api.reply_message(event.reply_token,
+                                   [ImageSendMessage(original_content_url=os.path.join(base_url, img_path), preview_image_url=os.path.join(base_url, img_path)),
+                                    TextSendMessage("心のじゅんびはよろしいですか？"),
+                                    TextSendMessage("はい / いいえ")])
+        user_dict[id].name = dist_name
+        user_dict[id].state = "pending"
 
 
 if __name__ == "__main__":
