@@ -13,7 +13,7 @@ import tempfile
 import numpy as np
 from scipy.misc import imread, imsave, imresize
 from facecrop import crop_face
-from utils import resize_and_rotate
+from utils import resize_and_rotate, crop_ratio_2to1
 
 app = Flask(__name__)
 
@@ -120,15 +120,28 @@ def handle_content_message(event):
     image_path = os.path.join(static_tmp_dir, dist_name)
 
     img = imread(image_path)
-    face_img = crop_face(img, (image_size, image_size))
-    if np.isnan(face_img).any():
-        line_bot_api.reply_message(event.reply_token,
-                                   [TextSendMessage("顔をみつけられませんでした"),
-                                    TextSendMessage("べつの画像でためしてください")])
-        user_dict[id].clear()
-    else:
-        # face_img = imresize(face_img, (128, 128))
-        eyes_img = face_img[:int(image_size/2), :, :]
+
+    if user_dict[id].state == "waiting":
+        face_img = crop_face(img, (image_size, image_size))
+        if np.isnan(face_img).any():
+            line_bot_api.reply_message(event.reply_token,
+                                       [TextSendMessage("顔をみつけられませんでした"),
+                                        TextSendMessage("切り出した画像をおくってください")])
+            user_dict[id].state = "crop_pending"
+        else:
+            # face_img = imresize(face_img, (128, 128))
+            eyes_img = face_img[:int(image_size/2), :, :]
+            concat_img = np.concatenate([eyes_img, hatena_img], axis=0)
+            img_path = os.path.join(static_crop_dir, dist_name)
+            imsave(img_path, concat_img)
+            line_bot_api.reply_message(event.reply_token,
+                                       [ImageSendMessage(original_content_url=os.path.join(base_url, img_path), preview_image_url=os.path.join(base_url, img_path)),
+                                        TextSendMessage("心のじゅんびはよろしいですか？"),
+                                        TextSendMessage("はい / いいえ")])
+            user_dict[id].name = dist_name
+            user_dict[id].state = "pending"
+    elif user_dict[id].state == "crop_pending":
+        eyes_img = imresize(crop_ratio_2to1(img), (int(image_size/2), image_size))
         concat_img = np.concatenate([eyes_img, hatena_img], axis=0)
         img_path = os.path.join(static_crop_dir, dist_name)
         imsave(img_path, concat_img)
@@ -138,7 +151,6 @@ def handle_content_message(event):
                                     TextSendMessage("はい / いいえ")])
         user_dict[id].name = dist_name
         user_dict[id].state = "pending"
-
 
 if __name__ == "__main__":
     arg_parser = ArgumentParser(

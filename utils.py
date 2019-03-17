@@ -129,3 +129,14 @@ def resize_and_rotate(im, fine_size):
     im = np.rot90(im)
     im = imresize(im, (fine_size, fine_size * 2))
     return im
+
+def crop_ratio_2to1(im):
+    h, w = im.shape[0], im.shape[1]
+    if w > h * 2:
+        w_ = h * 2
+        margin = int((w - w_) / 2)
+        return im[:, margin:w_+1, :]
+    else:
+        h_ = int(w / 2)
+        margin = h - h_
+        return im[margin:, :]
