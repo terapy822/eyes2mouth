@@ -1,5 +1,5 @@
 # eyes2mouth network
-!["a"](../images/woman.jpg)
+!["a"](images/woman.jpg)
 
 
 
