@@ -7,7 +7,7 @@
 Is it possible to generate mouth image only from the information how eyes look like?  
 Eyes2mouth network answers this question using Deep Learning and pix2pix network.  
 Here, we show our scheme.  
-!["a"](../images/architecture.jpg)
+!["a"](docs/images/architecture.jpg)
 
 # Samples
 !["01"](../images/test_0001.png)
