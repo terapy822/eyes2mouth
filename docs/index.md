@@ -9,7 +9,7 @@ First, we separate face images into a mouth image and eyes image.
 We use [Celeba dataset](http://mmlab.ie.cuhk.edu.hk/projects/CelebA.html) as training face images.  
 Eye images are feed into [pix2pix network](https://github.com/phillipi/pix2pix) and generated images are concatenated with original eye images.  
 The pix2pix network learns to generate realistic mouth images so that the concatenated images are classified as real faces by a discriminator.  
-When training is success, the pix2pix network ends up with generating realistic mouth images which are fit to the input eyes image.
+When training is success, the pix2pix network ends up with generating realistic mouth images which are fit to the input eyes images.
 
 !["a"](images/architecture.jpg)
 
