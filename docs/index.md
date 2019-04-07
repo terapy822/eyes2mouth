@@ -43,8 +43,7 @@ Note that no information of original mouth is used.
 !["05"](images/test_0024.png)
 
 # demo
-Please check out our demo!  
-https://nayopu.ngrok.io
+Please check out our [demo](https://nayopu.ngrok.io)!  
 
 !["05"](images/demo.png)
 
