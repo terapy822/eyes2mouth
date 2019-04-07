@@ -14,6 +14,7 @@ import numpy as np
 from scipy.misc import imread, imsave, imresize
 from facecrop import crop_face
 from utils import resize_and_rotate, crop_ratio_2to1
+import numpy as np
 
 app = Flask(__name__)
 
@@ -37,8 +38,12 @@ image_size = 128
 
 hatena_img = imresize(imread("hatena.jpg"), (int(image_size/2), image_size))
 
+batch_imgs = np.load("batch.npy")
+
 # get model instance
-model = pix2pix(tf.Session(), dataset_name="face128", image_size=image_size, batch_size=1, output_size=128, checkpoint_dir="checkpoint/")
+model = pix2pix(tf.Session(), dataset_name="face128", image_size=image_size, batch_size=10, output_size=128, checkpoint_dir="checkpoint/")
+assert model.load(model.checkpoint_dir), " [-] Load FAILED"
+print(" [*] Load SUCCESS")
 
 class UserStatus():
     def __init__(self):
@@ -81,7 +86,7 @@ def handle_text_message(event):
             dist_name = user_dict[id].name
             face_img = imread(os.path.join(static_crop_dir, dist_name))
             resized_img = resize_and_rotate(face_img, image_size)
-            gen_img = model.test_1_image(resized_img)
+            gen_img = model.test_1_image(resized_img, batch_imgs)
             gen_path = os.path.join(static_gen_dir, dist_name)
             imsave(gen_path, gen_img)
             line_bot_api.reply_message(event.reply_token, ImageSendMessage(original_content_url=os.path.join(base_url, gen_path),

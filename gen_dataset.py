@@ -3,40 +3,49 @@ from scipy.misc import imread, imsave, imresize
 import os
 import numpy as np
 import argparse
+from glob import glob
 
-parser = argparse.ArgumentParser(description='')
-parser.add_argument('--valsize', type=int, default=100)
-parser.add_argument('--imsize', type=int, default=128)
-args = parser.parse_args()
+DATASET_DIR = "input/celeba/images"
 
-def gen_concat_dataset(names, is_train, im_size, cropped_dir, dataset_dir):
+
+def process_and_save_images(paths, is_train, im_size, dataset_dir):
+    from facecrop import crop_face
+
     if is_train:
-        mode = "train"
+        dir = os.path.join(dataset_dir, "train")
+        os.makedirs(dir, exist_ok=True)
     else:
-        mode = "val"
+        dir = os.path.join(dataset_dir, "val")
+        os.makedirs(dir, exist_ok=True)
 
-    for name in names:
-        im_path = os.path.join(cropped_dir, name)
-        im = imread(im_path)
-        im = np.rot90(im)
-        im = imresize(im, (im_size, im_size*2))
-        imsave(os.path.join(dataset_dir, mode, name), im)
-        print(name)
+    for path in paths:
+        im = imread(path)
+        im_crop = crop_face(im, (im_size, im_size))
+        if not np.isnan(im_crop).any():
+            name = os.path.basename(path)
+            imsave(os.path.join(dir, name), im_crop)
+            print("Processed", name)
+        else:
+            print("Failed   ", name)
 
-val_size = args.valsize
-im_size = args.imsize
-cropped_dir = "input/cropped"
-dataset_dir = "datasets/face{}".format(im_size)
-train_dir = os.path.join(dataset_dir, "train")
-val_dir = os.path.join(dataset_dir, "val")
-os.makedirs(train_dir, exist_ok=True)
-os.makedirs(val_dir, exist_ok=True)
 
-names = np.array(os.listdir(cropped_dir))
-np.random.seed(1)
-names = np.random.permutation(names)
-train_names = names[val_size:]
-val_names = names[:val_size]
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description='')
+    parser.add_argument('--valsize', type=int, default=100)
+    parser.add_argument('--imsize', type=int, default=128)
+    args = parser.parse_args()
 
-gen_concat_dataset(train_names, True, im_size, cropped_dir, dataset_dir)
-gen_concat_dataset(val_names, False, im_size, cropped_dir, dataset_dir)
+    val_size = args.valsize
+    im_size = args.imsize
+
+    dataset_dir = "processed/cropped_{}".format(im_size)
+    os.makedirs(dataset_dir, exist_ok=True)
+
+    paths = np.array(glob(os.path.join(DATASET_DIR, "*")))
+    np.random.seed(1)
+    names = np.random.permutation(paths)
+    train_paths = names[val_size:]
+    val_paths = names[:val_size]
+
+    process_and_save_images(train_paths, True, im_size, dataset_dir)
+    process_and_save_images(val_paths, False, im_size, dataset_dir)

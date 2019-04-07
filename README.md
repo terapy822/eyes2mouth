@@ -1,26 +1,30 @@
-# eyes2mouth
-!["01"](example01.png)
-!["02"](example02.png)
-!["03"](example03.png)
-!["04"](example04.png)
-## train
-1. Preprocess cropped images
+# What's this?
+!["a"](images/architecture.jpeg)
+
+# Samples
+!["01"](images/test_0001.png)
+!["02"](images/test_0002.png)
+!["03"](images/test_0003.png)
+!["04"](images/test_0004.png)
+!["05"](images/test_0005.png)
+
+# How to use
+## Train
+1. Download celeba dataset
     ~~~bash
-    $ cd input/
-    $ ./untar.sh
-    $ cd ..
+    $ ./download_celeba/sh
     ~~~
-2. Generate dataset by concatenating and resizing the images
+2. Cropping faces
     ~~~bash
-    $ python3 gen_dataset.py
+    $ python gen_dataset.py
     ~~~
 3. Start training
     ~~~bash
-    $ python3 main.py --phase train --dataset_name face128 --batch_size 10 --fine_size 128 --lr 0.00002
+    $ python main.py --phase train --dataset_name cropped_128 --batch_size 10 --fine_size 128 --lr 0.00002
     ~~~
 
-## test
+## Test
 1. Start testing
     ~~~bash
-    $ python3 main.py --phase test --dataset_name face128 --batch_size 10 --fine_size 128
+    $ python main.py --phase test --dataset_name cropped_128 --batch_size 10 --fine_size 128
     ~~~

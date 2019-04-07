@@ -14,8 +14,9 @@ class batch_norm(object):
             self.momentum = momentum
             self.name = name
 
-    def __call__(self, x, train=True):
-        return tf.contrib.layers.batch_norm(x, decay=self.momentum, updates_collections=None, epsilon=self.epsilon, scale=True, scope=self.name)
+    def __call__(self, x, train=True, reuse=False):
+        # return tf.layers.batch_normalization(x, epsilon=self.epsilon, scale=True, name=self.name, training=train, reuse=reuse)
+        return tf.contrib.layers.batch_norm(x, decay=self.momentum, epsilon=self.epsilon, scale=True, scope=self.name, is_training=train, reuse=reuse)
 
 def binary_cross_entropy(preds, targets, name=None):
     """Computes binary cross entropy given `preds`.
