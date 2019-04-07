@@ -4,7 +4,7 @@ Eyes2mouth network answers this question using Deep Learning and pix2pix network
 
 !["a"](images/woman.jpg)
 
-# What's this?
+# How it works
 First, we separate face images into a mouth image and eyes image.
 We use [Celeba dataset](http://mmlab.ie.cuhk.edu.hk/projects/CelebA.html) as training face images.  
 Eye images are feed into [pix2pix network](https://github.com/phillipi/pix2pix) and generated images are concatenated with original eye images.  
@@ -14,17 +14,17 @@ When training is success, the pix2pix network ends up with generating realistic 
 !["a"](images/architecture.jpg)
 
 # Samples
-Here, we show samples generated from test eye images.
+Here, we show samples generated from test eye images.  
 Note that no information of original mouth is used.
 
 !["01"](images/test_0001.png)
 !["02"](images/test_0002.png)
 !["03"](images/test_0003.png)
-!["04"](images/test_0004.png)  
+!["04"](images/test_0004.png)
 !["05"](images/test_0005.png)
-!["05"](images/test_0006.png)
+!["05"](images/test_0006.png)  
 !["05"](images/test_0007.png)
-!["05"](images/test_0008.png)  
+!["05"](images/test_0008.png)
 !["05"](images/test_0009.png)
 !["05"](images/test_0010.png)
 !["05"](images/test_0011.png)
@@ -33,4 +33,12 @@ Note that no information of original mouth is used.
 !["05"](images/test_0004.png)
 !["05"](images/test_0015.png)
 !["05"](images/test_0016.png)
+!["05"](images/test_0017.png)
+!["05"](images/test_0018.png)  
+!["05"](images/test_0019.png)
+!["05"](images/test_0020.png)
+!["05"](images/test_0021.png)
+!["05"](images/test_0022.png)
+!["05"](images/test_0023.png)
+!["05"](images/test_0024.png)
 
