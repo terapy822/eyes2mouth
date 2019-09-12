@@ -1,3 +1,6 @@
+# Web article
+https://nayopu.github.io/eyes2mouth/
+
 # How to use
 ## Train
 1. Download celeba dataset
